@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>डेटा मैनेजर और Google Sheet सिंक</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: #dbeafe;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --surface: #ffffff;
+      --bg: #f8fafc;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --radius: 12px;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', 'Noto Sans Devanagari', sans-serif; }
+    body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Login Screen */
+    #loginOverlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(8px); display: flex; align-items: center;
+      justify-content: center; z-index: 1000; padding: 1rem;
+    }
+    .login-box {
+      background: var(--surface); width: 100%; max-width: 420px;
+      border-radius: 20px; padding: 2.2rem; box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border); text-align: center;
+    }
+    .login-box h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text); }
+    .login-box p { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.5rem; }
+    .login-field { margin-bottom: 1.2rem; text-align: left; }
+    .login-field label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .input-pass-wrap { position: relative; }
+    .input-pass-wrap input { width: 100%; padding-right: 2.8rem; }
+    .toggle-pass {
+      position: absolute; right: 0.8rem; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; color: var(--text-muted);
+    }
+    .login-btn {
+      width: 100%; padding: 0.85rem; background: var(--primary); color: white;
+      border: none; border-radius: var(--radius); font-weight: 600; font-size: 1rem;
+      cursor: pointer; transition: background 0.2s; margin-top: 0.5rem;
+    }
+    .login-btn:hover { background: var(--primary-hover); }
+    .demo-hint {
+      margin-top: 1.2rem; background: var(--primary-light); color: var(--primary);
+      padding: 0.6rem; border-radius: 8px; font-size: 0.8rem; font-weight: 500;
+    }
+
+    /* Main App Header */
+    header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 50; box-shadow: var(--shadow-sm);
+    }
+    .header-content {
+      max-width: 1200px; margin: 0 auto; padding: 0.8rem 1.2rem;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.8rem;
+    }
+    .brand { display: flex; align-items: center; gap: 0.8rem; }
+    .brand-icon {
+      width: 42px; height: 42px; background: var(--primary); border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; color: white;
+      font-weight: 800; font-size: 1.2rem;
+    }
+    .brand h1 { font-size: 1.15rem; font-weight: 700; color: var(--text); }
+    .brand span { font-size: 0.75rem; color: var(--text-muted); display: block; }
+    
+    .nav-tabs { display: flex; gap: 0.4rem; background: #f1f5f9; padding: 0.3rem; border-radius: var(--radius); }
+    .tab-btn {
+      padding: 0.5rem 0.9rem; border: none; background: transparent; font-weight: 600;
+      font-size: 0.85rem; border-radius: 8px; cursor: pointer; color: var(--text-muted);
+      transition: all 0.2s;
+    }
+    .tab-btn.active { background: var(--surface); color: var(--primary); box-shadow: var(--shadow-sm); }
+
+    .header-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    
+    .sync-status-badge {
+      display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.75rem;
+      border-radius: 20px; font-size: 0.78rem; font-weight: 600; background: #f1f5f9; color: var(--text-muted);
+    }
+    .sync-status-badge.syncing { background: #fef3c7; color: #b45309; }
+    .sync-status-badge.synced { background: #dcfce7; color: #15803d; }
+    .sync-status-badge.error { background: #fee2e2; color: #b91c1c; }
+
+    .lang-switcher { display: inline-flex; background: #e2e8f0; border-radius: 8px; padding: 2px; }
+    .lang-btn {
+      border: none; background: transparent; padding: 0.35rem 0.65rem; border-radius: 6px;
+      font-size: 0.8rem; font-weight: 700; cursor: pointer; color: var(--text-muted); transition: all 0.2s;
+    }
+    .lang-btn.active { background: var(--surface); color: var(--primary); box-shadow: var(--shadow-sm); }
+
+    .btn-run {
+      background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 0.5rem 0.8rem;
+      border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer;
+    }
+    .btn-logout {
+      background: #fee2e2; color: var(--danger); border: none; padding: 0.5rem 0.8rem;
+      border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer;
+    }
+
+    /* Main Container */
+    main { max-width: 1200px; margin: 1.5rem auto; padding: 0 1.2rem; flex: 1; width: 100%; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow-sm);
+      margin-bottom: 1.5rem;
+    }
+    .card-title {
+      font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.2rem; }
+    .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+    .form-group.full-width { grid-column: 1 / -1; }
+    .form-group label { font-size: 0.85rem; font-weight: 600; color: var(--text); }
+    input, select, textarea {
+      padding: 0.65rem 0.85rem; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 0.9rem; outline: none; transition: border-color 0.2s; background: #fff;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+    textarea { resize: vertical; min-height: 80px; }
+
+    .form-actions { margin-top: 1.2rem; display: flex; gap: 0.8rem; justify-content: flex-end; align-items: center; }
+    .btn {
+      padding: 0.65rem 1.2rem; border-radius: 8px; font-weight: 600; font-size: 0.9rem;
+      border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { background: #f8fafc; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-success { background: var(--success); color: white; }
+
+    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); padding: 1rem 1.2rem; border-radius: var(--radius); }
+    .stat-label { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
+    .stat-val { font-size: 1.5rem; font-weight: 800; color: var(--text); margin-top: 0.2rem; }
+
+    .controls-bar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .search-box { flex: 1; min-width: 250px; position: relative; }
+    .search-box input { width: 100%; padding-left: 2.2rem; }
+    .search-icon { position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+
+    .table-container { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
+    th { background: #f8fafc; padding: 0.85rem 1rem; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); color: var(--text); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background-color: #f8fafc; }
+    .actions-cell { display: flex; gap: 0.5rem; }
+    .action-icon-btn {
+      width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border);
+      background: #fff; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; transition: all 0.2s;
+    }
+    .action-icon-btn:hover { background: #f1f5f9; }
+    .action-icon-btn.edit:hover { border-color: var(--primary); color: var(--primary); }
+    .action-icon-btn.del:hover { border-color: var(--danger); color: var(--danger); }
+
+    .code-box {
+      background: #1e293b; color: #f8fafc; padding: 1.2rem; border-radius: 10px;
+      font-family: monospace; font-size: 0.85rem; line-height: 1.5; overflow-x: auto;
+      max-height: 380px; position: relative;
+    }
+    .copy-btn {
+      position: absolute; right: 1rem; top: 1rem; background: rgba(255,255,255,0.15);
+      color: #fff; border: none; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.75rem; cursor: pointer;
+    }
+
+    .mobile-cards { display: none; flex-direction: column; gap: 0.8rem; }
+    .mobile-card-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow-sm); }
+    .mobile-card-row { display: flex; justify-content: space-between; margin-bottom: 0.4rem; font-size: 0.85rem; }
+    .mobile-card-label { font-weight: 600; color: var(--text-muted); }
+
+    @media (max-width: 768px) {
+      .table-container { display: none; }
+      .mobile-cards { display: flex; }
+      .header-content { flex-direction: column; align-items: stretch; }
+      .nav-tabs { width: 100%; justify-content: space-around; }
+      .tab-btn { flex: 1; text-align: center; }
+    }
+
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none;
+      align-items: center; justify-content: center; z-index: 500; padding: 1rem;
+    }
+    .modal-box {
+      background: var(--surface); width: 100%; max-width: 520px; border-radius: var(--radius);
+      padding: 1.5rem; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Login Overlay -->
+  <div id="loginOverlay">
+    <div class="login-box">
+      <div class="brand-icon" style="margin: 0 auto 1rem; width: 50px; height: 50px;">डी</div>
+      <h2 data-i18n="loginTitle">एडमिन लॉगिन</h2>
+      <p data-i18n="loginSubtitle">डेटा एक्सेस और फॉर्म मैनेजमेंट के लिए लॉगिन करें</p>
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="login-field">
+          <label data-i18n="usernameLabel">यूजरनेम</label>
+          <input type="text" id="usernameInput" value="admin" required placeholder="admin">
+        </div>
+        <div class="login-field">
+          <label data-i18n="passwordLabel">पासवर्ड</label>
+          <div class="input-pass-wrap">
+            <input type="password" id="passwordInput" value="admin123" required placeholder="admin123">
+            <button type="button" class="toggle-pass" onclick="togglePassVisibility()">👁️</button>
+          </div>
+        </div>
+        <button type="submit" class="login-btn" data-i18n="loginBtn">लॉगिन करें</button>
+      </form>
+      <div class="demo-hint" data-i18n="demoHint">
+        🔑 डिफ़ॉल्ट क्रेडेंशियल्स:<br><strong>यूजरनेम:</strong> admin | <strong>पासवर्ड:</strong> admin123
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="header-content">
+      <div class="brand">
+        <div class="brand-icon">D</div>
+        <div>
+          <h1 data-i18n="appTitle">डेटा मैनेजर और शीट्स सिंक</h1>
+          <span data-i18n="appSubtitle">ऑटो-सिंक एनेबल्ड वेब ऐप</span>
+        </div>
+      </div>
+
+      <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('recordsTab')" data-i18n="tabRecords">डेटा और रिकॉर्ड्स</button>
+        <button class="tab-btn" onclick="switchTab('fieldsTab')" data-i18n="tabFields">फॉर्म फ़ील्ड्स</button>
+        <button class="tab-btn" onclick="switchTab('syncTab')" data-i18n="tabSync">Google Sheet</button>
+      </div>
+
+      <div class="header-actions">
+        <div id="syncBadge" class="sync-status-badge">
+          <span id="syncDot">⚪</span> <span id="syncStatusText">तैयार</span>
+        </div>
+
+        <div class="lang-switcher">
+          <button type="button" class="lang-btn active" id="btnLangHi" onclick="setLanguage('hi')">हिन्दी</button>
+          <button type="button" class="lang-btn" id="btnLangEn" onclick="setLanguage('en')">English</button>
+        </div>
+
+        <button class="btn-run" onclick="openRuntimeApp()" data-i18n="btnRun">🚀 रन करें</button>
+        <button class="btn-logout" onclick="handleLogout()" data-i18n="btnLogout">लॉगआउट</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main>
+    <!-- TAB 1: Records & Data Entry -->
+    <div id="recordsTab" class="tab-content active">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="totalRecordsLabel">कुल रिकॉर्ड्स</div>
+          <div class="stat-val" id="totalRecords">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="activeRecordsLabel">सक्रिय (Active)</div>
+          <div class="stat-val" id="activeRecords" style="color: var(--success);">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="pendingRecordsLabel">प्रतीक्षारत (Pending)</div>
+          <div class="stat-val" id="pendingRecords" style="color: var(--warning);">0</div>
+        </div>
+      </div>
+
+      <!-- DATA ENTRY FORM (TOP) -->
+      <div class="card">
+        <div class="card-title">
+          <span id="formTitle" data-i18n="newRecordTitle">नया डेटा दर्ज करें</span>
+          <button id="cancelEditBtn" class="btn btn-outline" style="display:none; font-size:0.8rem;" onclick="resetForm()" data-i18n="cancelBtn">रद्द करें</button>
+        </div>
+        <form id="dynamicEntryForm" onsubmit="handleFormSubmit(event)">
+          <input type="hidden" id="editRowId">
+          <div class="form-grid" id="formFieldsContainer"></div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="saveRecordBtn" data-i18n="saveBtn">रिकॉर्ड सेव करें</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- ENTRY LIST / RECORDS TABLE (BOTTOM) -->
+      <div class="card">
+        <div class="card-title">
+          <span data-i18n="recordsListTitle">दर्ज किए गए रिकॉर्ड्स की सूची</span>
+        </div>
+        <div class="controls-bar">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="रिकॉर्ड खोजें (नाम, फ़ोन, ईमेल...)" oninput="filterRecords()" data-i18n-ph="searchPlaceholder">
+          </div>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <button class="btn btn-outline" onclick="exportToCSV()" data-i18n="btnExportCsv">📥 Export CSV</button>
+            <button class="btn btn-outline" onclick="exportAppDataJSON()" data-i18n="btnBackupJson">💾 बैकअप डेटा</button>
+            <button class="btn btn-success" onclick="syncWithGoogleSheet(true)" data-i18n="btnSync">🔄 सिंक करें</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table id="recordsTable">
+            <thead>
+              <tr id="tableHeaderRow"></tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="mobile-cards" id="mobileCardsContainer"></div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Dynamic Form Field Customizer -->
+    <div id="fieldsTab" class="tab-content">
+      <div class="card">
+        <div class="card-title">
+          <span data-i18n="fieldsManagerTitle">कस्टम फॉर्म फ़ील्ड्स प्रबंधित करें</span>
+          <button class="btn btn-primary" onclick="openAddFieldModal()" data-i18n="btnAddField">+ नया फ़ील्ड जोड़ें</button>
+        </div>
+        <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:1.2rem;" data-i18n="fieldsManagerDesc">
+          यहाँ से आप जो भी फ़ील्ड जोड़ेंगे, बदलेंगे या हटाएंगे, मुख्य फॉर्म और Google Sheet कोड अपने आप अपडेट हो जाएंगे।
+        </p>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th data-i18n="colFieldLabel">फ़ील्ड लेबल (नाम)</th>
+                <th data-i18n="colFieldType">प्रकार (Type)</th>
+                <th data-i18n="colFieldKey">फ़ील्ड Key</th>
+                <th data-i18n="colFieldRequired">अनिवार्य (Required)</th>
+                <th data-i18n="colFieldAction">कार्रवाई</th>
+              </tr>
+            </thead>
+            <tbody id="fieldsListBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Google Sheets Sync Setup -->
+    <div id="syncTab" class="tab-content">
+      <div class="card">
+        <div class="card-title" data-i18n="syncTitle">Google Sheets कनेक्शन विज़ार्ड</div>
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display:block; font-weight:600; font-size:0.9rem; margin-bottom:0.4rem;" data-i18n="sheetUrlLabel">Google Apps Script Web App URL:</label>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <input type="url" id="sheetUrlInput" placeholder="https://script.google.com/macros/s/.../exec" style="flex:1; min-width:280px;">
+            <button class="btn btn-primary" onclick="saveSheetUrl()" data-i18n="btnSaveUrl">URL सेव करें</button>
+          </div>
+          <small style="color:var(--text-muted); display:block; margin-top:0.4rem;" data-i18n="sheetNotice">यह URL Google Apps Script से प्राप्त किया गया Web App URL होना चाहिए।</small>
+        </div>
+
+        <h4 style="margin-bottom:0.5rem;" data-i18n="scriptHeader">Apps Script कोड (अपनी Google Sheet में पेस्ट करें):</h4>
+        <div class="code-box">
+          <button class="copy-btn" onclick="copyAppsScriptCode()" data-i18n="btnCopyCode">📋 कोड कॉपी करें</button>
+          <pre id="appsScriptDisplay"></pre>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Add/Edit Field Modal -->
+  <div class="modal-overlay" id="fieldModal">
+    <div class="modal-box">
+      <h3 style="margin-bottom:1rem;" id="modalFieldHeading" data-i18n="modalAddFieldTitle">नया फॉर्म फ़ील्ड जोड़ें</h3>
+      <form onsubmit="handleSaveField(event)">
+        <input type="hidden" id="editingFieldId">
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label data-i18n="lblFieldLabel">फ़ील्ड का नाम (Label)</label>
+          <input type="text" id="newFieldLabel" required placeholder="उदा. पता, आधार नंबर">
+        </div>
+        <div class="form-group" style="margin-bottom:1rem;">
+          <label data-i18n="lblFieldType">फ़ील्ड का प्रकार (Input Type)</label>
+          <select id="newFieldType">
+            <option value="text">टेक्स्ट (Text)</option>
+            <option value="number">नंबर (Number)</option>
+            <option value="email">ईमेल (Email)</option>
+            <option value="tel">फ़ोन (Phone)</option>
+            <option value="date">तारीख (Date)</option>
+            <option value="select">ड्रॉपडाउन (Select Option)</option>
+            <option value="textarea">बड़ा टेक्स्ट (Textarea)</option>
+          </select>
+        </div>
+        <div class="form-group" id="optionsGroup" style="display:none; margin-bottom:1rem;">
+          <label data-i18n="lblFieldOptions">विकल्प (कमा से अलग करें)</label>
+          <input type="text" id="newFieldOptions" placeholder="Pending, Active, Closed">
+        </div>
+        <div class="form-group" style="flex-direction:row; align-items:center; gap:0.5rem; margin-bottom:1.5rem;">
+          <input type="checkbox" id="newFieldRequired" style="width:auto;">
+          <label for="newFieldRequired" style="margin:0;" data-i18n="lblFieldReq">अनिवार्य फ़ील्ड (Required)</label>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+          <button type="button" class="btn btn-outline" onclick="closeAddFieldModal()" data-i18n="cancelBtn">रद्द करें</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitFieldModal" data-i18n="btnSubmitField">फ़ील्ड जोड़ें</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const I18N = {
+      hi: {
+        appTitle: "डेटा मैनेजर और शीट्स सिंक",
+        appSubtitle: "ऑटो-सिंक एनेबल्ड वेब ऐप",
+        loginTitle: "एडमिन लॉगिन",
+        loginSubtitle: "डेटा एक्सेस और फॉर्म मैनेजमेंट के लिए लॉगिन करें",
+        usernameLabel: "यूजरनेम",
+        passwordLabel: "पासवर्ड",
+        loginBtn: "लॉगिन करें",
+        demoHint: "🔑 डिफ़ॉल्ट क्रेडेंशियल्स:<br><strong>यूजरनेम:</strong> admin | <strong>पासवर्ड:</strong> admin123",
+        tabRecords: "डेटा और रिकॉर्ड्स",
+        tabFields: "फॉर्म फ़ील्ड्स",
+        tabSync: "Google Sheet",
+        btnRun: "🚀 रन करें",
+        btnLogout: "लॉगआउट",
+        totalRecordsLabel: "कुल रिकॉर्ड्स",
+        activeRecordsLabel: "सक्रिय (Active)",
+        pendingRecordsLabel: "प्रतीक्षारत (Pending)",
+        newRecordTitle: "नया डेटा दर्ज करें",
+        updateRecordTitle: "रिकॉर्ड अपडेट करें",
+        saveBtn: "रिकॉर्ड सेव करें",
+        updateBtn: "अपडेट सेव करें",
+        cancelBtn: "रद्द करें",
+        recordsListTitle: "दर्ज किए गए रिकॉर्ड्स की सूची",
+        searchPlaceholder: "रिकॉर्ड खोजें (नाम, फ़ोन, ईमेल...)",
+        btnExportCsv: "📥 Export CSV",
+        btnBackupJson: "💾 बैकअप डेटा",
+        btnSync: "🔄 सिंक करें",
+        noRecords: "कोई रिकॉर्ड उपलब्ध नहीं है",
+        colAction: "कार्रवाई",
+        editBtnText: "✏️ एडिट",
+        delBtnText: "🗑️ हटाएं",
+        fieldsManagerTitle: "कस्टम फॉर्म फ़ील्ड्स प्रबंधित करें",
+        btnAddField: "+ नया फ़ील्ड जोड़ें",
+        fieldsManagerDesc: "यहाँ से आप जो भी फ़ील्ड जोड़ेंगे, बदलेंगे या हटाएंगे, मुख्य फॉर्म और Apps Script कोड अपने आप अपडेट हो जाएंगे।",
+        colFieldLabel: "फ़ील्ड लेबल (नाम)",
+        colFieldType: "प्रकार (Type)",
+        colFieldKey: "फ़ील्ड Key",
+        colFieldRequired: "अनिवार्य (Required)",
+        colFieldAction: "कार्रवाई",
+        syncTitle: "Google Sheets कनेक्शन विज़ार्ड",
+        sheetUrlLabel: "Google Apps Script Web App URL:",
+        btnSaveUrl: "URL सेव करें",
+        sheetNotice: "जब भी आप ऐप खोलेंगे, यह URL अपने आप Google Sheet से नया डेटा फ़ेच कर लेगा।",
+        scriptHeader: "Apps Script कोड (अपनी Google Sheet में पेस्ट करें):",
+        btnCopyCode: "📋 कोड कॉपी करें",
+        modalAddFieldTitle: "नया फॉर्म फ़ील्ड जोड़ें",
+        modalEditFieldTitle: "फॉर्म फ़ील्ड संपादित करें (Edit Field)",
+        lblFieldLabel: "फ़ील्ड का नाम (Label)",
+        lblFieldType: "फ़ील्ड का प्रकार (Input Type)",
+        lblFieldOptions: "विकल्प (कमा से अलग करें)",
+        lblFieldReq: "अनिवार्य फ़ील्ड (Required)",
+        btnSubmitField: "फ़ील्ड जोड़ें",
+        btnUpdateField: "अपडेट सेव करें",
+        yesText: "✅ हाँ",
+        noText: "❌ नहीं",
+        syncAlertUrl: "कृपया पहले 'Google Sheet' टैब में जाकर Web App URL सेव करें!",
+        syncAlertNoData: "सिंक करने के लिए कोई रिकॉर्ड मौजूद नहीं है।",
+        syncSuccess: "डेटा Google Sheet में सफलतापूर्वक भेजा गया!",
+        syncFailed: "सिंक करने में समस्या आई: ",
+        delConfirm: "क्या आप इस रिकॉर्ड को हटाना चाहते हैं?",
+        fieldDelConfirm: "क्या आप इस फ़ील्ड को हटाना चाहते हैं?",
+        fieldMinAlert: "कम से कम 1 फ़ील्ड रहना अनिवार्य है!",
+        urlSavedAlert: "Google Sheet Web App URL सुरक्षित सेव हो गया!",
+        codeCopiedAlert: "Apps Script कोड क्लिपबोर्ड पर कॉपी हो गया!",
+        syncingText: "🟡 सिंक हो रहा है...",
+        syncedText: "🟢 Google Sheet से कनेक्टेड",
+        offlineText: "⚪ ऑफलाइन / लोकल मोड"
+      },
+      en: {
+        appTitle: "Data Manager & Sheets Sync",
+        appSubtitle: "Auto-Sync Enabled Web App",
+        loginTitle: "Admin Login",
+        loginSubtitle: "Sign in to manage form data and records",
+        usernameLabel: "Username",
+        passwordLabel: "Password",
+        loginBtn: "Login",
+        demoHint: "🔑 Default Credentials:<br><strong>Username:</strong> admin | <strong>Password:</strong> admin123",
+        tabRecords: "Data & Records",
+        tabFields: "Form Fields",
+        tabSync: "Google Sheet",
+        btnRun: "🚀 Run App",
+        btnLogout: "Logout",
+        totalRecordsLabel: "Total Records",
+        activeRecordsLabel: "Active Records",
+        pendingRecordsLabel: "Pending Records",
+        newRecordTitle: "Enter New Data",
+        updateRecordTitle: "Update Record",
+        saveBtn: "Save Record",
+        updateBtn: "Save Changes",
+        cancelBtn: "Cancel",
+        recordsListTitle: "List of Registered Records",
+        searchPlaceholder: "Search records (Name, Phone, Email...)",
+        btnExportCsv: "📥 Export CSV",
+        btnBackupJson: "💾 Backup Data",
+        btnSync: "🔄 Sync Now",
+        noRecords: "No records found",
+        colAction: "Action",
+        editBtnText: "✏️ Edit",
+        delBtnText: "🗑️ Delete",
+        fieldsManagerTitle: "Manage Custom Form Fields",
+        btnAddField: "+ Add New Field",
+        fieldsManagerDesc: "Fields added, edited or removed here will automatically update the entry form and Google Apps Script code.",
+        colFieldLabel: "Field Label",
+        colFieldType: "Type",
+        colFieldKey: "Field Key",
+        colFieldRequired: "Required",
+        colFieldAction: "Action",
+        syncTitle: "Google Sheets Connection Wizard",
+        sheetUrlLabel: "Google Apps Script Web App URL:",
+        btnSaveUrl: "Save URL",
+        sheetNotice: "Every time you launch the app, it automatically fetches latest data from Google Sheet.",
+        scriptHeader: "Apps Script Code (Paste into your Google Sheet):",
+        btnCopyCode: "📋 Copy Code",
+        modalAddFieldTitle: "Add New Form Field",
+        modalEditFieldTitle: "Edit Form Field",
+        lblFieldLabel: "Field Name (Label)",
+        lblFieldType: "Input Type",
+        lblFieldOptions: "Options (comma separated)",
+        lblFieldReq: "Mandatory Field (Required)",
+        btnSubmitField: "Add Field",
+        btnUpdateField: "Save Changes",
+        yesText: "✅ Yes",
+        noText: "❌ No",
+        syncAlertUrl: "Please configure and save your Web App URL in the 'Google Sheet' tab first!",
+        syncAlertNoData: "No records available to sync.",
+        syncSuccess: "Records successfully sent to Google Sheet!",
+        syncFailed: "Sync issue: ",
+        delConfirm: "Are you sure you want to delete this record?",
+        fieldDelConfirm: "Are you sure you want to delete this field?",
+        fieldMinAlert: "At least 1 field is required!",
+        urlSavedAlert: "Google Sheet Web App URL saved successfully!",
+        codeCopiedAlert: "Apps Script code copied to clipboard!",
+        syncingText: "🟡 Syncing...",
+        syncedText: "🟢 Connected to Sheet",
+        offlineText: "⚪ Offline / Local Mode"
+      }
+    };
+
+    let currentLang = localStorage.getItem('app_lang') || 'hi';
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      localStorage.setItem('app_lang', lang);
+
+      const btnHi = document.getElementById('btnLangHi');
+      const btnEn = document.getElementById('btnLangEn');
+      if (btnHi) btnHi.classList.toggle('active', lang === 'hi');
+      if (btnEn) btnEn.classList.toggle('active', lang === 'en');
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (I18N[lang] && I18N[lang][key]) el.innerHTML = I18N[lang][key];
+      });
+
+      document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+        const key = el.getAttribute('data-i18n-ph');
+        if (I18N[lang] && I18N[lang][key]) el.placeholder = I18N[lang][key];
+      });
+
+      renderDynamicForm();
+      renderRecords();
+      renderFieldsList();
+      renderAppsScriptCode();
+    }
+
+    const DEFAULT_FIELDS = [
+      { id: 'f1', key: 'fullName', label: 'पूरा नाम', labelEn: 'Full Name', type: 'text', required: true },
+      { id: 'f2', key: 'phone', label: 'मोबाइल नंबर', labelEn: 'Mobile Number', type: 'tel', required: true },
+      { id: 'f3', key: 'email', label: 'ईमेल पता', labelEn: 'Email Address', type: 'email', required: false },
+      { id: 'f4', key: 'category', label: 'श्रेणी / स्टेटस', labelEn: 'Category / Status', type: 'select', options: ['Active', 'Pending', 'Completed'], required: true },
+      { id: 'f5', key: 'entryDate', label: 'तारीख', labelEn: 'Date', type: 'date', required: true },
+      { id: 'f6', key: 'notes', label: 'टिप्पणी / विवरण', labelEn: 'Notes / Remarks', type: 'textarea', required: false }
+    ];
+
+    let fields = JSON.parse(localStorage.getItem('app_fields')) || DEFAULT_FIELDS;
+    let records = JSON.parse(localStorage.getItem('app_records')) || [];
+
+    function getFieldLabel(f) {
+      return (currentLang === 'en' && f.labelEn) ? f.labelEn : f.label;
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const u = document.getElementById('usernameInput').value.trim();
+      const p = document.getElementById('passwordInput').value.trim();
+      if (u === 'admin' && p === 'admin123') {
+        document.getElementById('loginOverlay').style.display = 'none';
+        sessionStorage.setItem('isLoggedIn', 'true');
+        autoFetchFromGoogleSheet();
+      } else {
+        alert(currentLang === 'hi' ? 'गलत यूजरनेम या पासवर्ड!' : 'Invalid username or password!');
+      }
+    }
+
+    function handleLogout() {
+      sessionStorage.removeItem('isLoggedIn');
+      document.getElementById('loginOverlay').style.display = 'flex';
+    }
+
+    function togglePassVisibility() {
+      const p = document.getElementById('passwordInput');
+      p.type = p.type === 'password' ? 'text' : 'password';
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById(tabId);
+      if (target) target.classList.add('active');
+      if (event && event.target) event.target.classList.add('active');
+      if (tabId === 'syncTab') renderAppsScriptCode();
+    }
+
+    function renderDynamicForm() {
+      const container = document.getElementById('formFieldsContainer');
+      if (!container) return;
+      container.innerHTML = '';
+      fields.forEach(f => {
+        const div = document.createElement('div');
+        div.className = `form-group ${f.type === 'textarea' ? 'full-width' : ''}`;
+        const lbl = getFieldLabel(f);
+        div.innerHTML = `<label>${lbl} ${f.required ? '<span style="color:var(--danger)">*</span>' : ''}</label>`;
+        
+        let inputEl;
+        if (f.type === 'textarea') {
+          inputEl = document.createElement('textarea');
+        } else if (f.type === 'select') {
+          inputEl = document.createElement('select');
+          (f.options || []).forEach(opt => {
+            const o = document.createElement('option');
+            o.value = opt; o.textContent = opt;
+            inputEl.appendChild(o);
+          });
+        } else {
+          inputEl = document.createElement('input');
+          inputEl.type = f.type;
+        }
+        inputEl.id = `field_${f.key}`;
+        inputEl.name = f.key;
+        if (f.required) inputEl.required = true;
+        div.appendChild(inputEl);
+        container.appendChild(div);
+      });
+    }
+
+    function renderRecords(data = records) {
+      const t = I18N[currentLang] || I18N.hi;
+      const headerRow = document.getElementById('tableHeaderRow');
+      if (!headerRow) return;
+      headerRow.innerHTML = '<th>ID</th>' + fields.map(f => `<th>${getFieldLabel(f)}</th>`).join('') + `<th>${t.colAction}</th>`;
+
+      const body = document.getElementById('tableBody');
+      const mobileCards = document.getElementById('mobileCardsContainer');
+      body.innerHTML = '';
+      mobileCards.innerHTML = '';
+
+      if (!data || data.length === 0) {
+        body.innerHTML = `<tr><td colspan="${fields.length + 2}" style="text-align:center; color:var(--text-muted); padding:2rem;">${t.noRecords}</td></tr>`;
+        mobileCards.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:1rem;">${t.noRecords}</div>`;
+        updateStats();
+        return;
+      }
+
+      data.forEach(r => {
+        const tr = document.createElement('tr');
+        let rowHtml = `<td><strong>${r.id || '-'}</strong></td>`;
+        fields.forEach(f => {
+          rowHtml += `<td>${r[f.key] || '-'}</td>`;
+        });
+        rowHtml += `
+          <td class="actions-cell">
+            <button class="action-icon-btn edit" onclick="editRecord('${r.id}')" title="Edit">✏️</button>
+            <button class="action-icon-btn del" onclick="deleteRecord('${r.id}')" title="Delete">🗑️</button>
+          </td>
+        `;
+        tr.innerHTML = rowHtml;
+        body.appendChild(tr);
+
+        const card = document.createElement('div');
+        card.className = 'mobile-card-item';
+        let cardHtml = `<div class="mobile-card-row"><span class="mobile-card-label">ID:</span><strong>${r.id || '-'}</strong></div>`;
+        fields.forEach(f => {
+          cardHtml += `<div class="mobile-card-row"><span class="mobile-card-label">${getFieldLabel(f)}:</span><span>${r[f.key] || '-'}</span></div>`;
+        });
+        cardHtml += `
+          <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:0.8rem;">
+            <button class="btn btn-outline" style="padding:0.4rem 0.8rem; font-size:0.8rem;" onclick="editRecord('${r.id}')">${t.editBtnText}</button>
+            <button class="btn btn-danger" style="padding:0.4rem 0.8rem; font-size:0.8rem;" onclick="deleteRecord('${r.id}')">${t.delBtnText}</button>
+          </div>
+        `;
+        card.innerHTML = cardHtml;
+        mobileCards.appendChild(card);
+      });
+
+      updateStats();
+    }
+
+    function updateStats() {
+      const tot = document.getElementById('totalRecords');
+      const act = document.getElementById('activeRecords');
+      const pen = document.getElementById('pendingRecords');
+      if (tot) tot.textContent = records.length;
+      if (act) act.textContent = records.filter(r => String(r.category).toLowerCase() === 'active').length;
+      if (pen) pen.textContent = records.filter(r => String(r.category).toLowerCase() === 'pending').length;
+    }
+
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+      const editId = document.getElementById('editRowId').value;
+      const record = { id: editId || 'REC-' + Date.now().toString().slice(-6) };
+
+      fields.forEach(f => {
+        const el = document.getElementById(`field_${f.key}`);
+        if (el) record[f.key] = el.value;
+      });
+
+      if (editId) {
+        const idx = records.findIndex(r => r.id === editId);
+        if (idx !== -1) records[idx] = record;
+      } else {
+        records.unshift(record);
+      }
+
+      localStorage.setItem('app_records', JSON.stringify(records));
+      resetForm();
+      renderRecords();
+      postSingleRecordToSheet(record);
+    }
+
+    function editRecord(id) {
+      const rec = records.find(r => r.id === id);
+      if (!rec) return;
+
+      const t = I18N[currentLang] || I18N.hi;
+      document.getElementById('editRowId').value = rec.id;
+      fields.forEach(f => {
+        const el = document.getElementById(`field_${f.key}`);
+        if (el) el.value = rec[f.key] || '';
+      });
+
+      document.getElementById('formTitle').textContent = `${t.updateRecordTitle} (${rec.id})`;
+      document.getElementById('saveRecordBtn').textContent = t.updateBtn;
+      document.getElementById('cancelEditBtn').style.display = 'inline-block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetForm() {
+      const t = I18N[currentLang] || I18N.hi;
+      const form = document.getElementById('dynamicEntryForm');
+      if (form) form.reset();
+      document.getElementById('editRowId').value = '';
+      document.getElementById('formTitle').textContent = t.newRecordTitle;
+      document.getElementById('saveRecordBtn').textContent = t.saveBtn;
+      document.getElementById('cancelEditBtn').style.display = 'none';
+    }
+
+    function deleteRecord(id) {
+      const t = I18N[currentLang] || I18N.hi;
+      if (confirm(`${t.delConfirm} (${id})`)) {
+        records = records.filter(r => r.id !== id);
+        localStorage.setItem('app_records', JSON.stringify(records));
+        renderRecords();
+      }
+    }
+
+    function filterRecords() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = records.filter(r => {
+        return Object.values(r).some(val => String(val).toLowerCase().includes(q));
+      });
+      renderRecords(filtered);
+    }
+
+    function exportToCSV() {
+      const t = I18N[currentLang] || I18N.hi;
+      if (records.length === 0) return alert(t.syncAlertNoData);
+      const headers = ['ID', ...fields.map(f => getFieldLabel(f))];
+      const csvRows = [headers.join(',')];
+
+      records.forEach(r => {
+        const row = [r.id, ...fields.map(f => `"${String(r[f.key] || '').replace(/"/g, '""')}"`)];
+        csvRows.push(row.join(','));
+      });
+
+      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `Data_Export_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+    }
+
+    function exportAppDataJSON() {
+      const backup = { fields, records, sheetUrl: localStorage.getItem('app_sheet_url') || '', lang: currentLang };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `App_Backup_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+    }
+
+    // --- FIELD CUSTOMIZER LOGIC (WITH EDIT & DELETE) ---
+    function renderFieldsList() {
+      const t = I18N[currentLang] || I18N.hi;
+      const tbody = document.getElementById('fieldsListBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      fields.forEach((f) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${getFieldLabel(f)}</strong></td>
+          <td><span style="background:#e2e8f0; padding:2px 8px; border-radius:4px; font-size:0.8rem;">${f.type}</span></td>
+          <td><code>${f.key}</code></td>
+          <td>${f.required ? t.yesText : t.noText}</td>
+          <td>
+            <div class="actions-cell">
+              <button class="action-icon-btn edit" onclick="openEditFieldModal('${f.id}')" title="Edit Field">✏️</button>
+              <button class="action-icon-btn del" onclick="deleteField('${f.id}')" title="Delete Field">🗑️</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openAddFieldModal() {
+      const t = I18N[currentLang] || I18N.hi;
+      document.getElementById('editingFieldId').value = '';
+      document.getElementById('newFieldLabel').value = '';
+      document.getElementById('newFieldType').value = 'text';
+      document.getElementById('newFieldOptions').value = '';
+      document.getElementById('newFieldRequired').checked = false;
+      document.getElementById('optionsGroup').style.display = 'none';
+
+      document.getElementById('modalFieldHeading').textContent = t.modalAddFieldTitle;
+      document.getElementById('btnSubmitFieldModal').textContent = t.btnSubmitField;
+      document.getElementById('fieldModal').style.display = 'flex';
+    }
+
+    function openEditFieldModal(id) {
+      const f = fields.find(item => item.id === id);
+      if (!f) return;
+
+      const t = I18N[currentLang] || I18N.hi;
+      document.getElementById('editingFieldId').value = f.id;
+      document.getElementById('newFieldLabel').value = f.label || '';
+      document.getElementById('newFieldType').value = f.type || 'text';
+      document.getElementById('newFieldOptions').value = (f.options || []).join(', ');
+      document.getElementById('newFieldRequired').checked = !!f.required;
+
+      document.getElementById('optionsGroup').style.display = f.type === 'select' ? 'block' : 'none';
+      document.getElementById('modalFieldHeading').textContent = t.modalEditFieldTitle;
+      document.getElementById('btnSubmitFieldModal').textContent = t.btnUpdateField;
+      document.getElementById('fieldModal').style.display = 'flex';
+    }
+
+    function closeAddFieldModal() {
+      document.getElementById('fieldModal').style.display = 'none';
+    }
+
+    const fieldTypeEl = document.getElementById('newFieldType');
+    if (fieldTypeEl) {
+      fieldTypeEl.addEventListener('change', function() {
+        document.getElementById('optionsGroup').style.display = this.value === 'select' ? 'block' : 'none';
+      });
+    }
+
+    function handleSaveField(e) {
+      e.preventDefault();
+      const editingId = document.getElementById('editingFieldId').value;
+      const label = document.getElementById('newFieldLabel').value.trim();
+      const type = document.getElementById('newFieldType').value;
+      const required = document.getElementById('newFieldRequired').checked;
+      const opts = document.getElementById('newFieldOptions').value.split(',').map(s => s.trim()).filter(Boolean);
+
+      if (editingId) {
+        // Edit existing field
+        const idx = fields.findIndex(f => f.id === editingId);
+        if (idx !== -1) {
+          fields[idx].label = label;
+          fields[idx].labelEn = label;
+          fields[idx].type = type;
+          fields[idx].required = required;
+          fields[idx].options = opts;
+        }
+      } else {
+        // Add new field
+        const key = 'custom_' + Date.now().toString().slice(-4);
+        fields.push({ id: 'f_' + Date.now(), key, label, labelEn: label, type, required, options: opts });
+      }
+
+      localStorage.setItem('app_fields', JSON.stringify(fields));
+
+      closeAddFieldModal();
+      renderFieldsList();
+      renderDynamicForm();
+      renderRecords();
+      renderAppsScriptCode();
+    }
+
+    function deleteField(id) {
+      const t = I18N[currentLang] || I18N.hi;
+      if (fields.length <= 1) return alert(t.fieldMinAlert);
+      if (confirm(t.fieldDelConfirm)) {
+        fields = fields.filter(f => f.id !== id);
+        localStorage.setItem('app_fields', JSON.stringify(fields));
+        renderFieldsList();
+        renderDynamicForm();
+        renderRecords();
+        renderAppsScriptCode();
+      }
+    }
+
+    function renderAppsScriptCode() {
+      const cols = ['ID', ...fields.map(f => getFieldLabel(f))];
+      const keys = ['id', ...fields.map(f => f.key)];
+
+      const script = `// --- Google Apps Script (doGet + doPost) ---
+function doGet(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var rows = sheet.getDataRange().getValues();
+  if (rows.length < 2) return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
+  
+  var headers = rows[0];
+  var data = [];
+  for (var i = 1; i < rows.length; i++) {
+    var row = rows[i];
+    var item = {};
+    for (var j = 0; j < headers.length; j++) {
+      item[headers[j]] = row[j];
+    }
+    data.push(item);
+  }
+  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var lock = LockService.getScriptLock();
+  lock.tryLock(10000);
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    var data = JSON.parse(e.postData.contents);
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(${JSON.stringify(cols)});
+    }
+    var row = [${keys.map(k => `data.${k} || ""`).join(', ')}];
+    sheet.appendRow(row);
+    return ContentService.createTextOutput(JSON.stringify({status: 'success'})).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({status: 'error', message: err.toString()})).setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
+  }
+}`;
+      const disp = document.getElementById('appsScriptDisplay');
+      if (disp) disp.textContent = script;
+    }
+
+    function copyAppsScriptCode() {
+      const code = document.getElementById('appsScriptDisplay').textContent;
+      navigator.clipboard.writeText(code);
+      alert((I18N[currentLang] || I18N.hi).codeCopiedAlert);
+    }
+
+    function saveSheetUrl() {
+      const url = document.getElementById('sheetUrlInput').value.trim();
+      localStorage.setItem('app_sheet_url', url);
+      alert((I18N[currentLang] || I18N.hi).urlSavedAlert);
+      autoFetchFromGoogleSheet();
+    }
+
+    function updateSyncBadge(status) {
+      const badge = document.getElementById('syncBadge');
+      const text = document.getElementById('syncStatusText');
+      const t = I18N[currentLang] || I18N.hi;
+      if (!badge || !text) return;
+
+      badge.className = 'sync-status-badge ' + status;
+      if (status === 'syncing') text.textContent = t.syncingText;
+      else if (status === 'synced') text.textContent = t.syncedText;
+      else text.textContent = t.offlineText;
+    }
+
+    async function autoFetchFromGoogleSheet() {
+      const url = localStorage.getItem('app_sheet_url') || (document.getElementById('sheetUrlInput') ? document.getElementById('sheetUrlInput').value.trim() : '');
+      if (!url) {
+        updateSyncBadge('error');
+        return;
+      }
+
+      updateSyncBadge('syncing');
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          const sheetData = await response.json();
+          if (Array.isArray(sheetData) && sheetData.length > 0) {
+            const mapped = sheetData.map((row, idx) => {
+              const rec = { id: row['ID'] || ('REC-' + (idx + 101)) };
+              fields.forEach(f => {
+                const label = getFieldLabel(f);
+                rec[f.key] = row[label] || row[f.label] || row[f.labelEn] || '';
+              });
+              return rec;
+            });
+            records = mapped;
+            localStorage.setItem('app_records', JSON.stringify(records));
+            renderRecords();
+          }
+        }
+        updateSyncBadge('synced');
+      } catch (err) {
+        updateSyncBadge('synced');
+      }
+    }
+
+    async function postSingleRecordToSheet(rec) {
+      const url = localStorage.getItem('app_sheet_url') || (document.getElementById('sheetUrlInput') ? document.getElementById('sheetUrlInput').value.trim() : '');
+      if (!url) return;
+
+      updateSyncBadge('syncing');
+      try {
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(rec)
+        });
+        updateSyncBadge('synced');
+      } catch (err) {
+        updateSyncBadge('error');
+      }
+    }
+
+    async function syncWithGoogleSheet(isManual = false) {
+      const t = I18N[currentLang] || I18N.hi;
+      const url = localStorage.getItem('app_sheet_url') || (document.getElementById('sheetUrlInput') ? document.getElementById('sheetUrlInput').value.trim() : '');
+      if (!url) return alert(t.syncAlertUrl);
+      if (records.length === 0) return alert(t.syncAlertNoData);
+
+      updateSyncBadge('syncing');
+      try {
+        for (let r of records) {
+          await fetch(url, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(r)
+          });
+        }
+        updateSyncBadge('synced');
+        if (isManual) alert(t.syncSuccess);
+      } catch (error) {
+        updateSyncBadge('error');
+        if (isManual) alert(t.syncFailed + error.message);
+      }
+    }
+
+    function openRuntimeApp() {
+      const currentHTML = document.documentElement.outerHTML;
+      const blob = new Blob([currentHTML], { type: 'text/html' });
+      window.open(URL.createObjectURL(blob), '_blank');
+    }
+
+    window.onload = function() {
+      const isLogged = sessionStorage.getItem('isLoggedIn') === 'true';
+      const overlay = document.getElementById('loginOverlay');
+      if (isLogged && overlay) {
+        overlay.style.display = 'none';
+      }
+
+      const urlInput = document.getElementById('sheetUrlInput');
+      if (urlInput) {
+        urlInput.value = localStorage.getItem('app_sheet_url') || '';
+      }
+
+      setLanguage(currentLang);
+
+      if (isLogged) {
+        autoFetchFromGoogleSheet();
+      }
+    };
+  </script>
+</body>
+</html>
