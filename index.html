@@ -37,7 +37,7 @@
     }
     .login-box {
       background: var(--surface); width: 100%; max-width: 400px;
-      border-radius: 16px; padding: 2rem; box-shadow: var(--shadow-lg);
+      border-radius: 16px; padding: 2.2rem 2rem; box-shadow: var(--shadow-lg);
       border: 1px solid var(--border); text-align: center;
     }
     .login-box h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.4rem; color: var(--text); }
@@ -53,13 +53,9 @@
     .login-btn {
       width: 100%; padding: 0.8rem; background: var(--primary); color: white;
       border: none; border-radius: var(--radius); font-weight: 600; font-size: 0.95rem;
-      cursor: pointer; transition: background 0.2s; margin-top: 0.4rem;
+      cursor: pointer; transition: background 0.2s; margin-top: 0.6rem;
     }
     .login-btn:hover { background: var(--primary-hover); }
-    .demo-hint {
-      margin-top: 1.2rem; background: var(--primary-light); color: var(--primary);
-      padding: 0.6rem; border-radius: 8px; font-size: 0.78rem; font-weight: 500;
-    }
 
     /* Main App Header */
     header {
@@ -215,23 +211,20 @@
       <div class="brand-icon" style="margin: 0 auto 0.8rem; width: 44px; height: 44px;">D</div>
       <h2 data-i18n="loginTitle">Admin Login</h2>
       <p data-i18n="loginSubtitle">Sign in to manage form data and Google Sheets</p>
-      <form id="loginForm" onsubmit="handleLogin(event)">
+      <form id="loginForm" onsubmit="handleLogin(event)" autocomplete="off">
         <div class="login-field">
           <label data-i18n="usernameLabel">Username</label>
-          <input type="text" id="usernameInput" value="admin" required placeholder="admin">
+          <input type="text" id="usernameInput" required placeholder="Enter username" autocomplete="off">
         </div>
         <div class="login-field">
           <label data-i18n="passwordLabel">Password</label>
           <div class="input-pass-wrap">
-            <input type="password" id="passwordInput" value="admin123" required placeholder="admin123">
+            <input type="password" id="passwordInput" required placeholder="Enter password" autocomplete="new-password">
             <button type="button" class="toggle-pass" onclick="togglePassVisibility()">👁️</button>
           </div>
         </div>
         <button type="submit" class="login-btn" data-i18n="loginBtn">Login</button>
       </form>
-      <div class="demo-hint" data-i18n="demoHint">
-        Default: <strong>admin</strong> | Password: <strong>admin123</strong>
-      </div>
     </div>
   </div>
 
@@ -253,7 +246,7 @@
         <button class="tab-btn" onclick="switchTab('syncTab')" data-i18n="tabSync">Google Sheet</button>
       </nav>
 
-      <!-- Clean Header Action Buttons -->
+      <!-- Action Buttons -->
       <div class="header-actions">
         <div id="syncBadge" class="sync-status-badge">
           <span id="syncDot">⚪</span> <span id="syncStatusText">Ready</span>
@@ -429,7 +422,6 @@
         usernameLabel: "Username",
         passwordLabel: "Password",
         loginBtn: "Login",
-        demoHint: "Default: <strong>admin</strong> | Password: <strong>admin123</strong>",
         tabRecords: "Records",
         tabFields: "Form Fields",
         tabSync: "Google Sheet",
@@ -495,7 +487,6 @@
         usernameLabel: "यूजरनेम",
         passwordLabel: "पासवर्ड",
         loginBtn: "लॉगिन करें",
-        demoHint: "डिफ़ॉल्ट: <strong>admin</strong> | पासवर्ड: <strong>admin123</strong>",
         tabRecords: "डेटा रिकॉर्ड्स",
         tabFields: "फॉर्म फ़ील्ड्स",
         tabSync: "Google Sheet",
@@ -555,7 +546,6 @@
       }
     };
 
-    // By default English
     let currentLang = localStorage.getItem('app_lang') || 'en';
 
     function setLanguage(lang) {
@@ -614,6 +604,8 @@
 
     function handleLogout() {
       sessionStorage.removeItem('isLoggedIn');
+      document.getElementById('usernameInput').value = '';
+      document.getElementById('passwordInput').value = '';
       document.getElementById('loginOverlay').style.display = 'flex';
     }
 
